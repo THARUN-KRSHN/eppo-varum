@@ -10,4 +10,5 @@ SUPABASE_AUTH_ENABLED = bool(SUPABASE_URL and (SUPABASE_ANON_KEY or SUPABASE_SER
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 AUTH_SECRET = os.getenv("TRANSITLENS_AUTH_SECRET", "transitlens-local-development-secret")
+CORS_ORIGINS = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",") if origin.strip()]
 MAX_AUTH_BODY_LENGTH = 4096

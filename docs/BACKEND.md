@@ -1,6 +1,6 @@
 # Backend implementation notes
 
-The backend is structured around the finalized TransitLens flow: upload → preprocessing → OCR → table/semantic extraction → normalization → confidence → human verification → publication → map/search/alerts/GTFS.
+The backend is structured around the finalized eppo varum (എപ്പോ വരും) flow: upload → preprocessing → Gemini vision/OCR → table/semantic extraction → normalization → confidence → human verification → publication → map/search/alerts/GTFS.
 
 `app/services/pipeline.py` currently provides a deterministic demo extraction so the product can run without paid AI credentials. Replace that adapter with PaddleOCR + a structured vision/LLM provider for production extraction. Keep raw OCR evidence, bounding boxes, source document IDs, confidence and correction audit records in the production database.
 

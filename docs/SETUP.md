@@ -1,4 +1,4 @@
-# TransitLens Setup
+# eppo varum Setup | എപ്പോ വരും
 
 ## 1. Install dependencies
 

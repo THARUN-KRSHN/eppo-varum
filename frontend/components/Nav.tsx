@@ -11,7 +11,7 @@ export default function Nav() {
   const links = [['/map', copy.nav.map, Compass], ['/upload', copy.nav.upload, Upload], ['/contribute', copy.nav.contribute, Route], ['/alerts', copy.nav.alerts, Bell]] as const;
   return <>
     <header className="fixed z-50 left-1/2 top-4 hidden w-[min(940px,calc(100%-32px))] -translate-x-1/2 items-center justify-between rounded-full border border-green-100 bg-white/90 px-3 py-2 shadow-[0_16px_45px_rgba(21,128,61,.12)] backdrop-blur md:flex">
-      <Link href="/" className="flex items-center gap-2 rounded-full px-3 py-2 font-bold text-leaf"><span className="grid h-8 w-8 place-items-center rounded-xl bg-green-700 text-white"><Route size={17}/></span><span>TransitLens</span></Link>
+      <Link href="/" className="flex items-center gap-2 rounded-full px-3 py-2 font-bold text-leaf"><span className="grid h-8 w-8 place-items-center rounded-xl bg-green-700 text-white"><Route size={17}/></span><span>eppo varum</span></Link>
       <nav className="flex items-center gap-1">{links.map(([href, label, Icon]) => <Link key={href} href={href} className="flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-green-950 transition hover:bg-green-50"><Icon size={16}/>{label}</Link>)}</nav>
       <div className="flex items-center gap-2"><Link href={user ? '/profile' : '/login'} className="rounded-full px-3 py-2 text-sm font-bold text-green-800 hover:bg-green-50">{user?.username || 'Sign in'}</Link><button onClick={() => setLanguage(language === 'en' ? 'ml' : 'en')} aria-label="Switch language" className="flex items-center gap-2 rounded-full border border-green-100 px-3 py-2 text-sm font-semibold hover:bg-yellow-50"><Languages size={16}/>{language === 'en' ? 'മലയാളം' : 'EN'}</button></div>
     </header>

@@ -3,7 +3,7 @@ export const en = {
   home: {
     eyebrow: 'Malayalam + English · AI-assisted',
     title: 'Turn timetables into useful transit data.',
-    description: 'Capture a bus timetable, let TransitLens structure the route, verify uncertain fields, and explore the result on a map.',
+    description: 'Capture a bus timetable, let eppo varum structure the route, verify uncertain fields, and explore the result on a map.',
     upload: 'Upload timetable',
     explore: 'Explore bus stops',
     howTitle: 'From paper to the people who need it.',
