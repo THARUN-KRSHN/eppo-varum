@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Query, HTTPException
 from math import asin, cos, radians, sin, sqrt
 import sqlite3
+import json
 from pathlib import Path
+import httpx
 from ..core.config import DATABASE_PATH
 router=APIRouter(prefix="/stops",tags=["stops"])
 STOPS=[
@@ -38,6 +40,26 @@ def search(q:str=Query("")):
     query=normalize(q)
     return [s for s in STOPS if query in normalize(s["name_en"]) or query in normalize(s["name_ml"]) or any(query in alias for alias, stop_id in ALIASES.items() if stop_id == s["id"])]
 
+@router.get("/geocode")
+def geocode(q: str = Query(..., min_length=3, max_length=120)):
+    query = normalize(q)
+    local_matches = [
+        {"place_id": f"local-{stop['id']}", "display_name": stop["name_en"], "lat": str(stop["lat"]), "lon": str(stop["lng"])}
+        for stop in STOPS
+        if query in normalize(stop["name_en"]) or query in normalize(stop["name_ml"])
+    ]
+    try:
+        response = httpx.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"format": "jsonv2", "limit": 5, "countrycodes": "in", "q": q.strip()},
+            headers={"Accept": "application/json", "User-Agent": "eppo-varum/1.0 (local transit contribution app)"},
+            timeout=10,
+        )
+        response.raise_for_status()
+        return response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        return local_matches
+
 @router.get("/nearby")
 def nearby(lat:float,lng:float,radius:int=Query(500, ge=1, le=50000)):
     if not -90 <= lat <= 90 or not -180 <= lng <= 180:
@@ -48,8 +70,34 @@ def nearby(lat:float,lng:float,radius:int=Query(500, ge=1, le=50000)):
         value=sin(lat_delta/2)**2+cos(radians(lat))*cos(radians(stop["lat"]))*sin(lng_delta/2)**2
         return 2*earth_radius_m*asin(sqrt(value))
     return [{**stop,"distance_m":round(distance(stop),1)} for stop in STOPS if distance(stop)<=radius]
+
+@router.get("/manual-routes")
+def manual_routes():
+    path = Path(DATABASE_PATH)
+    if not path.is_absolute():
+        path = Path(__file__).resolve().parents[3] / path
+    if not path.exists():
+        return []
+    with sqlite3.connect(path) as connection:
+        try:
+            rows = connection.execute("SELECT id, location_name, lat, lng, origin, destination, departure_time FROM manual_routes WHERE status = 'PUBLISHED'").fetchall()
+        except sqlite3.OperationalError:
+            return []
+    return [{"id": row[0], "name_en": row[1], "name_ml": "", "lat": row[2], "lng": row[3], "origin": row[4], "destination": row[5], "departure_time": row[6], "manual": True} for row in rows]
 @router.get("/{stop_id}/timetable")
 def timetable(stop_id:str):
     s=next((x for x in STOPS if x["id"]==stop_id),None)
-    if not s: return {"stop":None,"departures":[]}
+    if not s:
+        path = Path(DATABASE_PATH)
+        if not path.is_absolute():
+            path = Path(__file__).resolve().parents[3] / path
+        try:
+            with sqlite3.connect(path) as connection:
+                row = connection.execute("SELECT id, location_name, lat, lng, origin, destination, departure_time FROM manual_routes WHERE id = ? AND status = 'PUBLISHED'", (stop_id,)).fetchone()
+        except sqlite3.OperationalError:
+            row = None
+        if not row:
+            return {"stop":None,"departures":[]}
+        stop = {"id": row[0], "name_en": row[1], "name_ml": "", "lat": row[2], "lng": row[3]}
+        return {"stop": stop, "departures": [{"route": f"{row[4]} → {row[5]}", "time": row[6], "type": "COMMUNITY", "source_document": row[0]}], "data_status": "AVAILABLE"}
     return {"stop":s,"departures":published_departures(s), "data_status": "AVAILABLE" if published_departures(s) else "NO_PUBLISHED_DATA"}

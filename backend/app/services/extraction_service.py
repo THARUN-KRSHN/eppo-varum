@@ -12,16 +12,18 @@ def extract_timetable(raw_text: str, blocks: list[dict[str, Any]], document_id: 
         lines = [block["text"] for block in blocks if block.get("text")]
     rows = []
     for sequence, line in enumerate(lines, 1):
-        matches = TIME_TOKEN.findall(line)
+        matches = list(TIME_TOKEN.finditer(line))
         if not matches:
             continue
-        time_value = normalize_time(matches[0])
-        before_time = line[:TIME_TOKEN.search(line).start()].strip(" -|,;:")
+        time_value = normalize_time(matches[0].group(1))
+        before_time = line[:matches[0].start()].strip(" -|,;:")
         name = re.sub(r"^\d+[.)]?\s*", "", before_time).strip()
         if not name or len(name) < 2:
             continue
-        confidence = 0.82 if time_value else 0.0
-        rows.append({"sequence": sequence, "name_en": name, "name_ml": None, "arrival_time": time_value, "departure_time": None, "confidence": confidence, "evidence": {"source_text": line, "page": 1}})
+        departure = normalize_time(matches[1].group(1)) if len(matches) > 1 else None
+        after_time = line[matches[-1].end():].strip(" -|,;:") if len(matches) > 1 else ""
+        confidence = 0.9 if departure else 0.82
+        rows.append({"sequence": len(rows) + 1, "name_en": name, "name_ml": None, "arrival_time": time_value, "departure_time": departure, "confidence": confidence, "evidence": {"source_text": line, "page": 1, "destination_text": after_time or None}})
     if not rows:
         raise ValueError("No stop/time rows were detected in the uploaded document.")
     origin = rows[0]["name_en"]

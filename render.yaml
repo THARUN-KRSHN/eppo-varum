@@ -2,6 +2,7 @@ services:
   - type: web
     name: eppo-varum-api
     runtime: python
+    plan: free
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -9,7 +10,7 @@ services:
       - key: PYTHON_VERSION
         value: 3.12.8
       - key: TRANSITLENS_DATABASE_PATH
-        value: /var/data/transitlens.sqlite3
+        value: /tmp/transitlens.sqlite3
       - key: TRANSITLENS_AUTH_SECRET
         generateValue: true
       - key: SUPABASE_URL
@@ -26,7 +27,3 @@ services:
         value: gemini-2.5-flash
       - key: CORS_ORIGINS
         sync: false
-    disk:
-      name: eppo-varum-data
-      mountPath: /var/data
-      sizeGB: 1

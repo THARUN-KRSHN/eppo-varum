@@ -12,7 +12,7 @@ class OCRUnavailable(RuntimeError):
     pass
 
 
-def preprocess_image(path: Path) -> np.ndarray:
+def _preprocess_variants(path: Path) -> list[np.ndarray]:
     image = cv2.imread(str(path))
     if image is None:
         raise ValueError("The image could not be decoded.")
@@ -22,7 +22,11 @@ def preprocess_image(path: Path) -> np.ndarray:
         image = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     denoised = cv2.fastNlMeansDenoising(gray, None, 7, 7, 21)
-    return cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+    return [
+        denoised,
+        cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1],
+        cv2.adaptiveThreshold(denoised, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 11),
+    ]
 
 
 def _tesseract_languages() -> str:
@@ -37,9 +41,15 @@ def _tesseract_languages() -> str:
 
 
 def image_ocr(path: Path) -> dict[str, Any]:
-    image = preprocess_image(path)
     language = _tesseract_languages()
-    data = pytesseract.image_to_data(Image.fromarray(image), lang=language, output_type=pytesseract.Output.DICT, config="--psm 6")
+    candidates = []
+    for image in _preprocess_variants(path):
+        for psm in (6, 11):
+            data = pytesseract.image_to_data(Image.fromarray(image), lang=language, output_type=pytesseract.Output.DICT, config=f"--oem 3 --psm {psm}")
+            words = [text.strip() for text in data["text"] if text.strip()]
+            confidence = sum(max(0.0, float(value)) for value in data["conf"] if float(value) >= 0) / max(1, sum(float(value) >= 0 for value in data["conf"]))
+            candidates.append((len(words) + confidence / 100, data, psm))
+    _, data, psm = max(candidates, key=lambda candidate: candidate[0])
     blocks = []
     for index, text in enumerate(data["text"]):
         value = text.strip()
@@ -57,7 +67,7 @@ def image_ocr(path: Path) -> dict[str, Any]:
         key = tuple(block["line"])
         lines.setdefault(key, []).append(block["text"])
     raw_text = "\n".join(" ".join(values) for values in lines.values())
-    return {"raw_text": raw_text, "blocks": blocks, "engine": f"tesseract:{language}"}
+    return {"raw_text": raw_text, "blocks": blocks, "engine": f"tesseract:{language}:psm{psm}"}
 
 
 def extract_text(path: Path, file_type: str) -> dict[str, Any]:

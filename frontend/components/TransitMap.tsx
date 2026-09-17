@@ -5,7 +5,7 @@ import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useEffect } from 'react';
 
-type Stop = { id: string; name_en: string; name_ml: string; lat: number; lng: number };
+type Stop = { id: string; name_en: string; name_ml: string; lat: number; lng: number; origin?: string; destination?: string; departure_time?: string };
 const markerIcon = (selected: boolean) => L.divIcon({ className: '', html: `<span style="display:grid;place-items:center;width:${selected ? 38 : 32}px;height:${selected ? 38 : 32}px;border:4px solid white;border-radius:50%;background:${selected ? '#facc15' : '#15803d'};box-shadow:0 4px 12px rgba(0,0,0,.22);color:${selected ? '#123c29' : 'white'};font:700 16px sans-serif">•</span>`, iconSize: [selected ? 38 : 32, selected ? 38 : 32], iconAnchor: [selected ? 19 : 16, selected ? 19 : 16] });
 
 function FitStops({ stops }: { stops: Stop[] }) {
