@@ -1,22 +1,27 @@
 'use client';
 
 import 'leaflet/dist/leaflet.css';
-import { CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import { CircleMarker, MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { useEffect } from 'react';
 
-type Stop = { id: string; name_en: string; name_ml: string; lat: number; lng: number; origin?: string; destination?: string; departure_time?: string };
+type Stop = { id: string; name_en: string; name_ml: string; lat: number; lng: number; origin?: string; destination?: string; departure_time?: string; timetable?: any[]; manual?: boolean };
 type NetworkStop = { code: string; name: string; district: string; lat: number; lng: number; type?: string; is_major?: boolean; routes_operated?: number; bus_count?: number };
 type District = { code: string; name: string; headquarters: string; lat: number; lng: number };
 const markerIcon = (selected: boolean) => L.divIcon({ className: '', html: `<span style="display:grid;place-items:center;width:${selected ? 38 : 32}px;height:${selected ? 38 : 32}px;border:4px solid white;border-radius:50%;background:${selected ? '#facc15' : '#15803d'};box-shadow:0 4px 12px rgba(0,0,0,.22);color:${selected ? '#123c29' : 'white'};font:700 16px sans-serif">•</span>`, iconSize: [selected ? 38 : 32, selected ? 38 : 32], iconAnchor: [selected ? 19 : 16, selected ? 19 : 16] });
 
-function FitStops({ stops }: { stops: Stop[] }) {
+function FitStops({ points }: { points: [number, number][] }) {
   const map = useMap();
-  useEffect(() => { if (stops.length) map.fitBounds(stops.map(stop => [stop.lat, stop.lng] as [number, number]), { padding: [42, 42], maxZoom: 12 }); }, [map, stops]);
+  useEffect(() => { if (points.length) map.fitBounds(points, { padding: [42, 42], maxZoom: 12 }); }, [map, points]);
+  return null;
+}
+function FocusPoint({ point }: { point?: [number, number] }) {
+  const map = useMap();
+  useEffect(() => { if (point) map.flyTo(point, 14, { duration: .7 }); }, [map, point]);
   return null;
 }
 
-export default function TransitMap({ stops, selectedId, onSelect, networkStops, depots, districts }: { stops: Stop[]; selectedId?: string; onSelect: (stop: Stop) => void; networkStops: NetworkStop[]; depots: NetworkStop[]; districts: District[] }) {
-  const fitPoints = [...networkStops, ...depots, ...districts].map(point => [point.lat, point.lng] as [number, number]);
-  return <div className="min-h-[620px] [&_.leaflet-control-attribution]:text-[9px]"><MapContainer center={[10.25, 76.32]} zoom={9} scrollWheelZoom className="!min-h-[620px] !w-full"><TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/><FitStops stops={fitPoints.map((point, index) => ({ id: String(index), name_en: '', name_ml: '', lat: point[0], lng: point[1] }))}/>{districts.map(district => <CircleMarker key={district.code} center={[district.lat, district.lng]} radius={8} pathOptions={{ color: '#f59e0b', fillColor: '#facc15', fillOpacity: .75 }}><Popup><strong>{district.name}</strong><br/>District headquarters: {district.headquarters}</Popup></CircleMarker>)}{depots.map(depot => <Marker key={`depot-${depot.code}`} position={[depot.lat, depot.lng]} icon={markerIcon(false)} eventHandlers={{ click: () => onSelect({ id: depot.code, name_en: depot.name, name_ml: '', lat: depot.lat, lng: depot.lng }) }}><Popup><strong>{depot.name} KSRTC Depot</strong><br/>{depot.district}<br/>{depot.routes_operated} routes · {depot.bus_count} buses</Popup></Marker>)}{networkStops.map(stop => <Marker key={`network-${stop.code}`} position={[stop.lat, stop.lng]} icon={markerIcon(stops.some(item => item.id === stop.code && item.id === selectedId))} eventHandlers={{ click: () => onSelect({ id: stop.code, name_en: stop.name, name_ml: '', lat: stop.lat, lng: stop.lng }) }}><Popup><strong>{stop.name}</strong><br/>{stop.district}<br/>{stop.type === 'bus_stand' ? 'Major bus stand' : 'Major stop'}</Popup></Marker>)}</MapContainer></div>;
+export default function TransitMap({ stops, selectedId, onSelect, networkStops, depots, districts, focusPoint, userLocation }: { stops: Stop[]; selectedId?: string; onSelect: (stop: Stop) => void; networkStops: NetworkStop[]; depots: NetworkStop[]; districts: District[]; focusPoint?: [number, number]; userLocation?: [number, number] }) {
+  const points = [...networkStops, ...depots, ...districts, ...stops].map(point => [point.lat, point.lng] as [number, number]);
+  return <div className="h-[calc(100svh-5rem)] min-h-[620px] w-full [&_.leaflet-control-attribution]:text-[9px]"><MapContainer center={[10.25, 76.32]} zoom={9} scrollWheelZoom className="!h-full !min-h-[620px] !w-full"><TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" /><FitStops points={points} /><FocusPoint point={focusPoint} />{userLocation && <CircleMarker center={userLocation} radius={9} pathOptions={{ color: '#2563eb', fillColor: '#60a5fa', fillOpacity: .9 }} />}{districts.map(district => <CircleMarker key={district.code} center={[district.lat, district.lng]} radius={8} pathOptions={{ color: '#f59e0b', fillColor: '#facc15', fillOpacity: .75 }} />)}{depots.map(depot => <Marker key={`depot-${depot.code}`} position={[depot.lat, depot.lng]} icon={markerIcon(false)} eventHandlers={{ click: () => onSelect({ id: depot.code, name_en: depot.name, name_ml: '', lat: depot.lat, lng: depot.lng }) }} />)}{networkStops.map(stop => <Marker key={`network-${stop.code}`} position={[stop.lat, stop.lng]} icon={markerIcon(stops.some(item => item.id === stop.code && item.id === selectedId))} eventHandlers={{ click: () => onSelect({ id: stop.code, name_en: stop.name, name_ml: '', lat: stop.lat, lng: stop.lng }) }} />)}{stops.filter(stop => stop.manual || stop.timetable).map(stop => <Marker key={`published-${stop.id}`} position={[stop.lat, stop.lng]} icon={markerIcon(stop.id === selectedId)} eventHandlers={{ click: () => onSelect(stop) }} />)}</MapContainer></div>;
 }

@@ -32,20 +32,20 @@ The output must include `eng` and `mal`. If Tesseract is installed elsewhere, se
 
 PDFs with a text layer are read directly. Scanned PDFs currently return a clear processing error until a PDF rasterizer/OCR worker is added.
 
-## 3. Gemini Vision extraction
+## 3. OpenRouter vision extraction
 
-Gemini is the primary parser because it understands timetable columns such as `FROM`, `ARRIVAL`, `DEPARTURE`, and `TO`. The backend sends the original image or PDF directly to Gemini and validates the returned JSON before storage. Tesseract is used only when Gemini is unavailable or returns an invalid response.
+OpenRouter is the primary parser because it routes vision-capable models that understand timetable columns such as `FROM`, `ARRIVAL`, `DEPARTURE`, and `TO`. The backend sends the original image or PDF directly to OpenRouter and validates the returned JSON before storage. Tesseract is used only when OpenRouter is unavailable or returns an invalid response.
 
 1. Create an API key in [Google AI Studio](https://aistudio.google.com/apikey).
 2. Copy `backend/.env.example` to `backend/.env`.
 3. Set:
 
 ```env
-GEMINI_API_KEY=your_gemini_api_key
-GEMINI_MODEL=gemini-2.5-flash
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_MODEL=google/gemini-2.5-flash
 ```
 
-Do not put this key in frontend environment variables. Check `GET http://localhost:8000/api/config`; it reports only whether Gemini is configured and never returns the key.
+Do not put this key in frontend environment variables. Check `GET http://localhost:8000/api/config`; it reports only whether OpenRouter is configured and never returns the key.
 
 ## 4. Supabase Storage and Auth
 
@@ -99,7 +99,7 @@ Open `http://localhost:3000`. API documentation is at `http://localhost:8000/doc
 1. Sign up or sign in.
 2. Upload a JPG, PNG, WEBP, or PDF.
 3. The backend validates and stores the original file.
-4. Gemini reads the original image/PDF and returns structured rows. OpenCV/Tesseract is the fallback path; PDFs without a text layer need Gemini or a PDF rasterizer.
+4. OpenRouter reads the original image/PDF and returns structured rows. OpenCV/Tesseract is the fallback path; PDFs without a text layer need a vision-capable OpenRouter model or a PDF rasterizer.
 5. The backend normalizes times, calculates confidence, stores evidence, and marks uncertain rows for review.
 6. Edit fields in verification. Each correction stores original value, corrected value, user, and timestamp.
 7. Publish only after validation. A success modal appears and the record becomes public.

@@ -13,5 +13,5 @@ def health(): return {"status":"ok","service":"eppo-varum-api","product":"eppo v
 
 @app.get("/api/config")
 def config():
-    from .core.config import CORS_ORIGIN_REGEX, CORS_ORIGINS, GEMINI_API_KEY, GEMINI_MODEL, SUPABASE_AUTH_ENABLED, SUPABASE_URL, SUPABASE_STORAGE_BUCKET
-    return {"supabase_auth": SUPABASE_AUTH_ENABLED, "supabase_storage": bool(SUPABASE_URL), "storage_bucket": SUPABASE_STORAGE_BUCKET, "ocr": "tesseract", "gemini": bool(GEMINI_API_KEY), "gemini_model": GEMINI_MODEL, "cors_origins": CORS_ORIGINS, "cors_origin_regex": CORS_ORIGIN_REGEX}
+    from .core.config import CORS_ORIGIN_REGEX, CORS_ORIGINS, OPENROUTER_API_KEY, OPENROUTER_MODEL, SUPABASE_AUTH_ENABLED, SUPABASE_URL, SUPABASE_STORAGE_BUCKET
+    return {"supabase_auth": SUPABASE_AUTH_ENABLED, "supabase_storage": bool(SUPABASE_URL), "storage_bucket": SUPABASE_STORAGE_BUCKET, "ocr": "tesseract", "openrouter": bool(OPENROUTER_API_KEY), "openrouter_model": OPENROUTER_MODEL, "cors_origins": CORS_ORIGINS, "cors_origin_regex": CORS_ORIGIN_REGEX}

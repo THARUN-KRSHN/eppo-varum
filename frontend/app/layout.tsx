@@ -3,6 +3,7 @@ import Nav from '../components/Nav';
 import { LanguageProvider } from '../components/LanguageProvider';
 import { AuthProvider } from '../components/AuthProvider';
 import Footer from '../components/Footer';
+import IntroSplash from '../components/IntroSplash';
 
 export const metadata = {
 	title: 'eppo varum | എപ്പോ വരും',
@@ -11,5 +12,5 @@ export const metadata = {
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-	return <html lang="en"><body><LanguageProvider><AuthProvider><Nav />{children}<Footer /></AuthProvider></LanguageProvider></body></html>;
+	return <html lang="en"><body><LanguageProvider><AuthProvider><IntroSplash /><Nav />{children}<Footer /></AuthProvider></LanguageProvider></body></html>;
 }

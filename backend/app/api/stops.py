@@ -152,6 +152,34 @@ def manual_routes():
         except sqlite3.OperationalError:
             return []
     return [{"id": row[0], "name_en": row[1], "name_ml": "", "lat": row[2], "lng": row[3], "origin": row[4], "destination": row[5], "departure_time": row[6], "manual": True} for row in rows]
+
+@router.get("/published-timetable")
+def published_timetable_stops():
+    path = Path(DATABASE_PATH)
+    if not path.is_absolute():
+        path = Path(__file__).resolve().parents[3] / path
+    if not path.exists():
+        return []
+    with sqlite3.connect(path) as connection:
+        rows = connection.execute("SELECT extraction FROM documents WHERE status = 'PUBLISHED' AND extraction IS NOT NULL").fetchall()
+    published = []
+    for (raw,) in rows:
+        extraction = json.loads(raw)
+        location = extraction.get("stop_location") or {}
+        if not location.get("lat") or not location.get("lng"):
+            continue
+        published.append({
+            "id": f"document-{extraction.get('document_id')}",
+            "name_en": location.get("name") or extraction.get("route", {}).get("origin") or "Verified stop",
+            "name_ml": location.get("name_ml") or "",
+            "lat": float(location["lat"]),
+            "lng": float(location["lng"]),
+            "origin": extraction.get("route", {}).get("origin"),
+            "destination": extraction.get("route", {}).get("destination"),
+            "timetable": extraction.get("stops", []),
+            "manual": False,
+        })
+    return published
 @router.get("/{stop_id}/timetable")
 def timetable(stop_id:str):
     s=next((x for x in STOPS if x["id"]==stop_id),None)

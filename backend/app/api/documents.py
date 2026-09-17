@@ -5,6 +5,7 @@ import uuid
 from PIL import Image
 from io import BytesIO
 from pydantic import BaseModel, Field
+from typing import Any
 from ..services.pipeline import process_document
 from ..services.validation import validate_extraction
 from ..services.document_store import documents
@@ -87,8 +88,8 @@ def extraction(document_id: str, user: dict = Depends(current_user)):
 
 class Correction(BaseModel):
     sequence: int = Field(ge=1)
-    field: str = Field(pattern=r"^(name_en|name_ml|arrival_time|departure_time)$")
-    value: str | None = None
+    field: str = Field(pattern=r"^(name_en|name_ml|arrival_time|departure_time|stop_location)$")
+    value: Any = None
 
 
 @router.patch("/{document_id}/extraction")
@@ -99,6 +100,11 @@ def correct(document_id: str, correction: Correction, user: dict = Depends(curre
     extraction = document.get("extraction")
     if not extraction:
         raise HTTPException(409, "Document extraction is not ready.")
+    if correction.field == "stop_location":
+        extraction["stop_location"] = correction.value
+        extraction["verification_status"] = "USER_CORRECTED"
+        documents.update(document_id, extraction=extraction, status="REVIEW_REQUIRED")
+        return {"success": True, "data": extraction}
     stop = next((row for row in extraction["stops"] if row.get("sequence") == correction.sequence), None)
     if not stop:
         raise HTTPException(404, "Timetable row not found.")

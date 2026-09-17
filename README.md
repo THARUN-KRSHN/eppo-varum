@@ -8,7 +8,7 @@ The name means **"When will it come?"**. The application answers that question f
 
 The project has two contribution paths:
 
-1. **Document contribution:** A user uploads a timetable image or PDF. The backend extracts rows with Gemini Vision, validates the result, and sends uncertain data to a human verification screen before publication.
+1. **Document contribution:** A user uploads a timetable image or PDF. The backend extracts rows with an OpenRouter vision model, validates the result, and sends uncertain data to a human verification screen before publication.
 2. **Manual route contribution:** A user searches for a place using OpenStreetMap suggestions, selects the exact suggested coordinate, enters the bus origin, destination, and departure time, and publishes the point directly to the public map.
 
 Only published data is returned by public timetable and map APIs.
@@ -18,10 +18,10 @@ Only published data is returned by public timetable and map APIs.
 ### Timetable extraction
 
 - JPG, JPEG, PNG, WEBP, and PDF uploads
-- Official `google-genai` SDK integration
-- Pydantic-enforced Gemini response schema for every timetable row
+- OpenRouter multimodal API integration
+- Pydantic-enforced response schema for every timetable row
 - Multimodal extraction of `FROM`, `ARRIVAL`, `DEPARTURE`, and `TO` columns
-- OCR transcript supplied to Gemini as supporting evidence
+- OCR transcript supplied to the vision model as supporting evidence
 - Multi-pass OpenCV/Tesseract fallback using denoising, threshold variants, and multiple page segmentation modes
 - English and Malayalam Tesseract language support
 - Arrival and departure normalization to `HH:MM:SS`
@@ -66,7 +66,7 @@ Upload image/PDF
 OpenCV preprocessing + Tesseract evidence
       |
       v
-Gemini Vision + Pydantic BusScheduleTable schema
+OpenRouter vision + Pydantic BusScheduleTable schema
       |
       v
 Existing route/stops extraction contract
@@ -81,7 +81,7 @@ Human correction and verification
 Published timetable -> map/search/timetable/alerts
 ```
 
-OCR is collected before Gemini so the model can use it as a cross-check while still reading the original image or PDF. If Gemini is unavailable, the validated OCR parser is used as a fallback.
+OCR is collected before OpenRouter so the model can use it as a cross-check while still reading the original image or PDF. If OpenRouter is unavailable, the validated OCR parser is used as a fallback.
 
 ### Manual route contribution
 
@@ -108,7 +108,7 @@ backend/
   app/
     api/                 FastAPI route modules
     core/                Environment and application configuration
-    services/            OCR, Gemini, extraction, validation, storage, auth
+      services/            OCR, OpenRouter, extraction, validation, storage, auth
   data/                  Local SQLite database and development uploads
   requirements.txt       Python dependencies
 frontend/
@@ -136,8 +136,8 @@ docs/
 
 - FastAPI and Uvicorn
 - Pydantic models and validation
-- `google-genai` official SDK
-- Gemini `gemini-2.5-flash` by default
+- OpenRouter multimodal API
+- `google/gemini-2.5-flash` by default through OpenRouter
 - OpenCV, Pillow, pytesseract, and pypdf
 - SQLite for local development
 - Optional Supabase Auth and private Storage
@@ -151,7 +151,7 @@ QUEUED -> PREPROCESSING -> OCR_PROCESSING -> STRUCTURING
                               \\-> PROCESSING_FAILED
 ```
 
-Gemini extraction is performed during the structuring stage. OCR evidence is retained in the extraction response even when Gemini succeeds.
+OpenRouter extraction is performed during the structuring stage. OCR evidence is retained in the extraction response even when the vision model succeeds.
 
 ## API Reference
 
@@ -220,7 +220,7 @@ Manual route publication requires a Bearer token. The request body is:
 - Node.js and npm
 - Tesseract OCR on `PATH`
 - Tesseract `eng` and `mal` language packs for the fallback path
-- A Gemini API key for Gemini extraction
+- An OpenRouter API key for document extraction
 
 ### Backend setup
 
@@ -235,8 +235,8 @@ python -m pip install -r backend\\requirements.txt
 Create `backend/.env` from the project environment template and configure at least:
 
 ```env
-GEMINI_API_KEY=your_gemini_api_key
-GEMINI_MODEL=gemini-2.5-flash
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_MODEL=google/gemini-2.5-flash
 TRANSITLENS_AUTH_SECRET=replace_with_a_long_random_secret
 CORS_ORIGINS=http://localhost:3000
 ```
@@ -279,30 +279,28 @@ tesseract --list-langs
 
 The language list should contain `eng` and `mal`. If Tesseract is installed outside `PATH`, configure `pytesseract.pytesseract.tesseract_cmd` in [ocr_service.py](backend/app/services/ocr_service.py).
 
-PDFs with a text layer are read using `pypdf`. Image-based PDFs require Gemini or a future PDF rasterization worker; the current fallback reports a clear OCR-unavailable error when no text layer exists.
+PDFs with a text layer are read using `pypdf`. Image-based PDFs require a vision-capable OpenRouter model or a future PDF rasterization worker; the current fallback reports a clear OCR-unavailable error when no text layer exists.
 
-## Gemini Configuration
+## OpenRouter Configuration
 
-Create a key in [Google AI Studio](https://aistudio.google.com/apikey) and set `GEMINI_API_KEY` only in the backend environment.
+Create a key in [OpenRouter](https://openrouter.ai/keys) and set `OPENROUTER_API_KEY` only in the backend environment.
 
-The service in [gemini_service.py](backend/app/services/gemini_service.py) uses:
+The service in [openrouter_service.py](backend/app/services/openrouter_service.py) uses:
 
-- `genai.Client(api_key=...)`
-- `types.Part.from_bytes(...)` for the source image or PDF
-- `types.GenerateContentConfig`
-- `response_mime_type="application/json"`
-- `response_schema=BusScheduleTable`
-- Pydantic validation through `BusScheduleTable.model_validate_json(...)`
+- OpenRouter's OpenAI-compatible `/api/v1/chat/completions` endpoint
+- Base64 image/PDF data URLs for the uploaded document
+- JSON response mode
+- Pydantic validation through `BusScheduleTable.model_validate(...)`
 
 The structured schema requires every row to contain `from_location`, `arrival_time`, `departure_time`, and `to_location`. The service then maps those fields into the existing application fields such as `name_en`, `arrival_time`, `departure_time`, route endpoints, and evidence.
 
-The backend reports only whether Gemini is configured:
+The backend reports only whether OpenRouter is configured:
 
 ```text
 GET http://localhost:8000/api/config
 ```
 
-Never expose `GEMINI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, or other server secrets in frontend environment variables.
+Never expose `OPENROUTER_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, or other server secrets in frontend environment variables.
 
 ## Supabase Auth and Storage
 
@@ -330,7 +328,7 @@ The [render.yaml](render.yaml) Blueprint creates the API service:
 
 1. Push the repository to GitHub.
 2. Create a Render Blueprint from the repository.
-3. Add `GEMINI_API_KEY`, Supabase variables, and `CORS_ORIGINS` in the Render dashboard.
+3. Add `OPENROUTER_API_KEY`, Supabase variables, and `CORS_ORIGINS` in the Render dashboard.
 4. Set the health check path to `/health`.
 5. Use the generated Render URL as the frontend API base URL.
 
