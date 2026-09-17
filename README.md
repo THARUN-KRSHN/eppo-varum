@@ -369,6 +369,15 @@ Useful focused checks include:
 ```powershell
 .\\.venv\\Scripts\\python.exe -c "from google import genai; from google.genai import types; print('google-genai available')"
 Invoke-WebRequest http://localhost:8000/api/stops/geocode?q=Aluva
+
+The backend also allows Vercel preview domains through `CORS_ORIGIN_REGEX` by default. For a custom frontend domain, set both values in Render, for example:
+
+```env
+CORS_ORIGINS=https://your-custom-domain.com
+CORS_ORIGIN_REGEX=https://your-custom-domain\\.com$
+```
+
+After changing Render environment variables, redeploy the backend. A browser signup request should show `OPTIONS /api/auth/signup` with status `200`; a `400` means the frontend origin is not allowed yet.
 ```
 
 ## Scope Boundaries

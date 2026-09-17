@@ -8,6 +8,7 @@
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--canvas); color: var(--ink); }
+img { max-width: 100%; }
 button, input { font: inherit; }
 button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid rgba(250, 204, 21, .8); outline-offset: 3px; }
 .pill { border-radius: 999px; }
