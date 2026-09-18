@@ -36,6 +36,7 @@ def extract_timetable(raw_text: str, blocks: list[dict[str, Any]], document_id: 
         "document_id": document_id,
         "source_type": source_type,
         "route": {"origin": origin, "destination": destination},
+        "stop_location": {"name": origin} if origin else None,
         "stops": rows,
         "overall_confidence": overall,
         "confidence_level": confidence_level(overall),

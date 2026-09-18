@@ -79,7 +79,13 @@ class DocumentStore:
     def list_by_user(self, user_id: str) -> list[dict[str, Any]]:
         with self._connection() as connection:
             rows = connection.execute("SELECT * FROM documents WHERE uploaded_by = ? ORDER BY created_at DESC", (user_id,)).fetchall()
-        return [dict(row) for row in rows]
+        documents = []
+        for row in rows:
+            document = dict(row)
+            if document.get("extraction"):
+                document["extraction"] = json.loads(document["extraction"])
+            documents.append(document)
+        return documents
 
 
 documents = DocumentStore()

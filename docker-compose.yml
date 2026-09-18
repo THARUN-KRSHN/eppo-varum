@@ -1,19 +1,11 @@
 services:
-  db:
-    image: postgis/postgis:16-3.4
-    environment:
-      POSTGRES_DB: transitlens
-      POSTGRES_USER: transitlens
-      POSTGRES_PASSWORD: transitlens
-    ports: ["5432:5432"]
-    volumes: ["pgdata:/var/lib/postgresql/data"]
   backend:
     build: ./backend
     environment:
-      DATABASE_URL: postgresql+psycopg://transitlens:transitlens@db:5432/transitlens
+      TRANSITLENS_DATABASE_PATH: data/transitlens.sqlite3
       CORS_ORIGINS: http://localhost:3000
     ports: ["8000:8000"]
-    depends_on: [db]
+    volumes: ["backend_data:/app/data"]
   frontend:
     build: ./frontend
     environment:
@@ -21,4 +13,4 @@ services:
     ports: ["3000:3000"]
     depends_on: [backend]
 volumes:
-  pgdata:
+  backend_data:

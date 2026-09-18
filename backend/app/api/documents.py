@@ -6,8 +6,8 @@ from PIL import Image
 from io import BytesIO
 from pydantic import BaseModel, Field
 from typing import Any
-from ..services.pipeline import process_document
-from ..services.validation import validate_extraction
+from ..services.pipeline import process_document, _merge_ocr_values
+from ..services.validation import fill_missing_times, validate_extraction
 from ..services.document_store import documents
 from ..services.auth_service import current_user
 from ..services.storage_service import upload_to_supabase
@@ -83,12 +83,16 @@ def extraction(document_id: str, user: dict = Depends(current_user)):
         raise HTTPException(403, "You do not own this document.")
     if "extraction" not in document or not document["extraction"]:
         raise HTTPException(409, "Document extraction is not ready.")
-    return {"document_id": document_id, **document["extraction"]}
+    extraction_data = document["extraction"]
+    if extraction_data.get("ocr") and extraction_data.get("stops") and not any(row.get("arrival_time") or row.get("departure_time") for row in extraction_data["stops"]):
+        _merge_ocr_values(extraction_data, extraction_data["ocr"], document_id, document.get("file_type", "IMAGE"))
+        documents.update(document_id, extraction=extraction_data, status=document.get("status", "REVIEW_REQUIRED"))
+    return {"document_id": document_id, **extraction_data}
 
 
 class Correction(BaseModel):
     sequence: int = Field(ge=1)
-    field: str = Field(pattern=r"^(name_en|name_ml|arrival_time|departure_time|stop_location)$")
+    field: str = Field(pattern=r"^(name_en|name_ml|arrival_time|departure_time|stop_location|remove_row)$")
     value: Any = None
 
 
@@ -102,6 +106,13 @@ def correct(document_id: str, correction: Correction, user: dict = Depends(curre
         raise HTTPException(409, "Document extraction is not ready.")
     if correction.field == "stop_location":
         extraction["stop_location"] = correction.value
+        extraction["verification_status"] = "USER_CORRECTED"
+        documents.update(document_id, extraction=extraction, status="REVIEW_REQUIRED")
+        return {"success": True, "data": extraction}
+    if correction.field == "remove_row":
+        extraction["stops"] = [row for row in extraction["stops"] if row.get("sequence") != correction.sequence]
+        for sequence, row in enumerate(extraction["stops"], 1):
+            row["sequence"] = sequence
         extraction["verification_status"] = "USER_CORRECTED"
         documents.update(document_id, extraction=extraction, status="REVIEW_REQUIRED")
         return {"success": True, "data": extraction}
@@ -124,13 +135,20 @@ def verify(document_id: str, user: dict = Depends(current_user)):
     extraction = document.get("extraction")
     if not extraction:
         raise HTTPException(409, "Document extraction is not ready.")
+    stops = extraction.get("stops", [])
+    route = extraction.setdefault("route", {})
+    if stops:
+        route["origin"] = route.get("origin") or stops[0].get("name_en") or stops[0].get("name_ml")
+        route["destination"] = route.get("destination") or stops[-1].get("name_en") or stops[-1].get("name_ml")
+    prediction_warnings = fill_missing_times(extraction)
     checked = validate_extraction(extraction)
-    blocking_codes = {"MISSING_ORIGIN", "MISSING_DESTINATION", "EMPTY_TIMETABLE", "INVALID_TIME", "NON_MONOTONIC_TIME"}
+    checked["warnings"] = prediction_warnings + checked.get("warnings", [])
+    blocking_codes = {"MISSING_ORIGIN", "MISSING_DESTINATION", "EMPTY_TIMETABLE"}
     if any(warning.get("code") in blocking_codes for warning in checked.get("warnings", [])):
         raise HTTPException(422, {"code": "VALIDATION_FAILED", "message": "Resolve invalid or inconsistent timetable values before publishing.", "warnings": checked["warnings"]})
     extraction["verification_status"] = "HUMAN_VERIFIED"
     documents.update(document_id, extraction=extraction, status="PUBLISHED")
-    return {"success": True, "document_id": document_id, "status": "PUBLISHED", "message": "Timetable published successfully."}
+    return {"success": True, "document_id": document_id, "status": "PUBLISHED", "message": "Timetable published successfully.", "warnings": prediction_warnings}
 
 
 @router.get("")

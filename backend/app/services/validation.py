@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 from typing import Any
 
 
-TIME_RE = re.compile(r"^(?P<hour>\d{1,2})[:.]?(?P<minute>\d{2})(?:\s*(?P<period>AM|PM))?$", re.IGNORECASE)
+TIME_RE = re.compile(r"^(?P<hour>\d{1,2})[:.]?(?P<minute>\d{2})(?::\d{2})?(?:\s*(?P<period>AM|PM))?$", re.IGNORECASE)
 
 
 def normalize_time(value: str | None) -> str | None:
@@ -33,6 +33,37 @@ def confidence_level(confidence: float) -> str:
     if confidence >= 0.75:
         return "MEDIUM"
     return "LOW"
+
+
+def fill_missing_times(extraction: dict[str, Any]) -> list[dict[str, Any]]:
+    """Fill blank cells with clearly marked estimates so review can be completed."""
+    stops = extraction.get("stops", [])
+    known = []
+    for stop in stops:
+        value = normalize_time(stop.get("arrival_time") or stop.get("departure_time"))
+        if value:
+            known.append(datetime.strptime(value, "%H:%M:%S"))
+    intervals = [(later - earlier).seconds for earlier, later in zip(known, known[1:]) if later > earlier]
+    interval = timedelta(seconds=round(sorted(intervals)[len(intervals) // 2])) if intervals else timedelta(minutes=10)
+    warnings = []
+    first_known = bool(known)
+    current = known[0] if first_known else datetime.strptime("06:00:00", "%H:%M:%S")
+    for stop in stops:
+        arrival = normalize_time(stop.get("arrival_time"))
+        departure = normalize_time(stop.get("departure_time"))
+        if not arrival:
+            current = current - interval if first_known and not warnings else current + interval
+            arrival = current.strftime("%H:%M:%S")
+            stop["arrival_time"] = arrival
+            warnings.append({"code": "PREDICTED_TIME", "sequence": stop.get("sequence"), "field": "arrival_time", "message": f"Arrival time was estimated as {arrival[:5]} because the source cell was empty."})
+        else:
+            current = datetime.strptime(arrival, "%H:%M:%S")
+        if not departure:
+            departure = (current + timedelta(minutes=2)).strftime("%H:%M:%S")
+            stop["departure_time"] = departure
+            warnings.append({"code": "PREDICTED_TIME", "sequence": stop.get("sequence"), "field": "departure_time", "message": f"Departure time was estimated as {departure[:5]} because the source cell was empty."})
+        current = datetime.strptime(departure, "%H:%M:%S")
+    return warnings
 
 
 def validate_extraction(extraction: dict[str, Any]) -> dict[str, Any]:

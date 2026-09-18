@@ -5,6 +5,8 @@
 @tailwind utilities;
 
 :root { --ink: #123c29; --leaf: #15803d; --leaf-dark: #0b5b2a; --mint: #eff9f1; --line: #dceee1; --sun: #facc15; --canvas: #fbfefb; font-family: 'DM Sans', 'Noto Sans Malayalam', sans-serif; }
+html[lang='ml'] { font-size: 94%; }
+html[lang='ml'] body { line-height: 1.55; }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--canvas); color: var(--ink); }
@@ -20,3 +22,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 @media (prefers-reduced-motion: no-preference) { .rise { animation: rise .5s ease-out both; } .delay-1 { animation-delay: .08s; } .delay-2 { animation-delay: .16s; } .delay-3 { animation-delay: .24s; } }
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes intro-logo-in { from { opacity: 0; transform: scale(.86); } to { opacity: 1; transform: scale(1); } }
+@media (min-width: 768px) {
+	main.min-h-screen > div.max-w-7xl { position: relative; }
+	main.min-h-screen > div.max-w-7xl > aside.surface { position: absolute; top: 5rem; left: 1rem; z-index: 20; width: min(360px, calc(100% - 2rem)); max-height: calc(100% - 6rem); overflow: auto; }
+}

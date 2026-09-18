@@ -23,6 +23,7 @@ class BusTrip(BaseModel):
 
 class BusScheduleTable(BaseModel):
     trips: list[BusTrip] = Field(description="Every visible timetable row, in source order")
+    stop_location: str = Field(default="", description="The visible bus stop or station location for this timetable")
 
 
 PROMPT = """
@@ -35,18 +36,20 @@ TO value belongs to that row. Do not shift values between rows or columns.
 Correct obvious OCR-like spelling errors using the visible text and common
 Kerala place names such as ANKAMALY, ALUVA, CHERTHALA, VAIKOM, THRISSUR,
 ALAPPUZHA, and CHALAKKUDY. Do not invent a value that is not visible; use an
-empty string when a cell cannot be read. Return times as HH:MM in 24-hour form
-when the source provides enough information. Return only valid JSON matching
-this structure: {"trips":[{"from_location":"","arrival_time":"",
-"departure_time":"","to_location":""}]}.
+empty string when a cell cannot be read. Never return placeholder values such
+as --:--, 00:00, or N/A. Return times as HH:MM in 24-hour form
+when the source provides enough information. Also extract the visible bus stop
+or station heading as stop_location. Return only valid JSON matching this
+structure: {"trips":[{"from_location":"","arrival_time":"",
+"departure_time":"","to_location":""}],"stop_location":""}.
 """.strip()
 
 
 def _to_extraction(schedule: BusScheduleTable, document_id: str, source_type: str) -> dict[str, Any]:
     stops = []
     for sequence, trip in enumerate(schedule.trips, 1):
-        arrival = normalize_time(trip.arrival_time) or trip.arrival_time or None
-        departure = normalize_time(trip.departure_time) or trip.departure_time or None
+        arrival = normalize_time(trip.arrival_time)
+        departure = normalize_time(trip.departure_time)
         source_text = " | ".join(value for value in (trip.from_location, trip.arrival_time, trip.departure_time, trip.to_location) if value)
         stops.append({
             "sequence": sequence,
@@ -64,7 +67,7 @@ def _to_extraction(schedule: BusScheduleTable, document_id: str, source_type: st
         "document_id": document_id,
         "source_type": source_type,
         "route": {"origin": origin, "destination": destination},
-        "stop_location": None,
+        "stop_location": {"name": schedule.stop_location or origin} if (schedule.stop_location or origin) else None,
         "stops": stops,
         "extraction_engine": f"openrouter:{OPENROUTER_MODEL}:structured",
     }
