@@ -4,6 +4,26 @@
 
 The name means **"When will it come?"**. The application answers that question from published timetable data. It does not claim to provide live GPS locations, live traffic predictions, or guaranteed arrival times.
 
+![eppo varum logo](frontend/public/logo.png)
+
+## Current Screens
+
+The latest frontend includes a full-screen interactive map, bilingual timetable workflows, community route contribution, verification, and scheduled alerts.
+
+![Map explorer](frontend/public/map.png)
+
+![Upload timetable](frontend/public/upload.png)
+
+![Timetable workflow](frontend/public/timetable.png)
+
+![Community contribution](frontend/public/community.png)
+
+![Scheduled alerts](frontend/public/alert.png)
+
+![Profile](frontend/public/profile.png)
+
+![Feature overview](frontend/public/features.png)
+
 ## What The Project Does
 
 The project has two contribution paths:
@@ -54,6 +74,8 @@ Only published data is returned by public timetable and map APIs.
 - Scheduled alert demo workflow
 - GTFS-compatible stop endpoint direction
 - Responsive Next.js bilingual interface
+- Mobile map layout with a clean map-first view, bottom navigation, marker-driven stop cards, and safe-area support
+- Desktop map overlays with compact top-left navigation, top-right search, and floating timetable details
 
 ## Data Flow
 
@@ -367,6 +389,7 @@ Useful focused checks include:
 ```powershell
 .\\.venv\\Scripts\\python.exe -c "from google import genai; from google.genai import types; print('google-genai available')"
 Invoke-WebRequest http://localhost:8000/api/stops/geocode?q=Aluva
+```
 
 The backend also allows Vercel preview domains through `CORS_ORIGIN_REGEX` by default. For a custom frontend domain, set both values in Render, for example:
 
@@ -376,7 +399,6 @@ CORS_ORIGIN_REGEX=https://your-custom-domain\\.com$
 ```
 
 After changing Render environment variables, redeploy the backend. A browser signup request should show `OPTIONS /api/auth/signup` with status `200`; a `400` means the frontend origin is not allowed yet.
-```
 
 ## Scope Boundaries
 
